@@ -1,7 +1,7 @@
-use coinbase::SCALE;
 use serde::de;
 use serde::{Deserialize, Deserializer};
 use std::collections::BTreeMap;
+use ordered_float::*;
 
 #[derive(Debug, Deserialize)]
 pub struct PriceData {
@@ -71,10 +71,10 @@ where
 pub struct Book {
     /// The "Bid" or "Buy" side of the order book. Ordered by price mapped to size.
     /// Scaled by SCALE
-    bids: BTreeMap<u64, u64>,
+    bids: BTreeMap<OrderedFloat<f64>, f64>,
     /// The "Ask" or "Sell" side of the order book. Ordered by price mapped to size.
     /// Scaled by SCALE
-    asks: BTreeMap<u64, u64>,
+    asks: BTreeMap<OrderedFloat<f64>, f64>,
 }
 
 impl Book {
@@ -90,7 +90,7 @@ impl Book {
             None
         } else {
             let (price, size) = self.bids.iter().next_back().unwrap();
-            Some((*price as f64 / SCALE as f64, *size as f64 / SCALE as f64))
+            Some((**price, *size))
         }
     }
 
@@ -99,7 +99,23 @@ impl Book {
             None
         } else {
             let (price, size) = self.asks.iter().next().unwrap();
-            Some((*price as f64 / SCALE as f64, *size as f64 / SCALE as f64))
+            Some((**price, *size))
+        }
+    }
+
+    pub fn MidPrice(&self) -> Option<f64> {
+        if self.BestBidPrice().is_none() || self.BestAskPrice().is_none() || self.BestBidPrice().unwrap().0 > self.BestAskPrice().unwrap().0  {
+            None
+        } else {
+            Some((self.BestAskPrice().unwrap().0 - self.BestBidPrice().unwrap().0) / 2.0)
+        }
+    }
+
+    pub fn BidAskSpread(&self) -> Option<f64> {
+        if self.BestBidPrice().is_none() || self.BestAskPrice().is_none() || self.BestBidPrice().unwrap().0 > self.BestAskPrice().unwrap().0  {
+            None
+        } else {
+            Some((self.BestAskPrice().unwrap().0 - self.BestBidPrice().unwrap().0) / self.BestAskPrice().unwrap().0)
         }
     }
 
@@ -107,12 +123,12 @@ impl Book {
         println!("bids:\n--------------------------------");
         println!("Price\tSize");
         for item in self.bids.iter().rev() {
-            println!("{}\t{}", *item.0 as f64 / SCALE as f64, *item.1 as f64 / SCALE as f64);
+            println!("{}\t{}", *item.0, *item.1);
         }
         println!("\nasks:\n--------------------------------");
         println!("Price\tSize");
         for item in &self.asks {
-            println!("{}\t{}", *item.0 as f64 / SCALE as f64, *item.1 as f64 / SCALE as f64);
+            println!("{}\t{}", *item.0, *item.1);
         }
     }
 
@@ -123,8 +139,8 @@ impl Book {
             if self
                 .bids
                 .insert(
-                    (item.price * SCALE as f64) as u64,
-                    (item.size * SCALE as f64) as u64,
+                    OrderedFloat(item.price),
+                    item.size,
                 )
                 .is_none()
             {
@@ -135,8 +151,8 @@ impl Book {
             if self
                 .asks
                 .insert(
-                    (item.price * SCALE as f64) as u64,
-                    (item.size * SCALE as f64) as u64,
+                    OrderedFloat(item.price),
+                    item.size,
                 )
                 .is_none()
             {
@@ -147,19 +163,17 @@ impl Book {
 
     pub fn UpdateBook(&mut self, data: L2UpdateData) {
         for item in &data.changes {
-            let _price = (item.price * SCALE as f64) as u64;
-            let _size = (item.size * SCALE as f64) as u64;
             if item.side == "buy" {
-                if _size == 0 {
-                    self.bids.remove(&_price);
+                if item.size == 0.0 {
+                    self.bids.remove(&OrderedFloat(item.price));
                 } else {
-                    self.bids.insert(_price, _size);
+                    self.bids.insert(OrderedFloat(item.price), item.size);
                 }
             } else if item.side == "sell" {
-                if _size == 0 {
-                    self.asks.remove(&_price);
+                if item.size == 0.0 {
+                    self.asks.remove(&OrderedFloat(item.price));
                 } else {
-                    self.asks.insert(_price, _size);
+                    self.asks.insert(OrderedFloat(item.price), item.size);
                 }
             } else {
                 unreachable!()

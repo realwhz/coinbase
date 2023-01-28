@@ -28,7 +28,7 @@ async fn main() {
 
     loop {
         let input =
-            read_from_stdin("Choose operation [bestbid, bestask, fullbook, quit], confirm with return:");
+            read_from_stdin("Choose operation [bestbid, bestask, midprice, spread, fullbook, quit], confirm with return:");
         match input.as_str() {
             "bestbid" => {
                 let book = local_book.lock().unwrap();
@@ -44,6 +44,22 @@ async fn main() {
                     println!("Best ask price {} with size {}", price, size);
                 } else {
                     println!("Empty ask book");
+                }
+            }
+            "midprice" => {
+                let book = local_book.lock().unwrap();
+                if let Some(midprice) = book.MidPrice() {
+                    println!("Mid-point price {}", midprice);
+                } else {
+                    println!("No valid mid-point price");
+                }
+            }
+            "spread" => {
+                let book = local_book.lock().unwrap();
+                if let Some(spread) = book.BidAskSpread() {
+                    println!("Bid-ask spread {:.2}%", spread * 100.0);
+                } else {
+                    println!("No valid bid-ask spread");
                 }
             }
             "fullbook" => {
