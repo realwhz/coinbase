@@ -114,11 +114,13 @@ async fn Subscribe(url: &str, instrument: &Vec<String>, book: Book) {
             Err(_) => {
                 println!("Failed to parse JSON msg {}", msg);
                 continue;
-            },
+            }
         };
 
         if parsed["type"].to_string() == "\"snapshot\"" {
-            if parsed["product_id"].is_null() || parsed["product_id"].to_string() != "\"".to_owned() + &instrument[0] + "\"" {
+            if parsed["product_id"].is_null()
+                || parsed["product_id"].to_string() != "\"".to_owned() + &instrument[0] + "\""
+            {
                 println!("Unexpected product_id in {}", msg);
                 continue;
             }
@@ -130,7 +132,9 @@ async fn Subscribe(url: &str, instrument: &Vec<String>, book: Book) {
             let mut local_book = book.lock().unwrap();
             local_book.UpdateFullBook(data.unwrap());
         } else if parsed["type"].to_string() == "\"l2update\"" {
-            if parsed["product_id"].is_null() || parsed["product_id"].to_string() != "\"".to_owned() + &instrument[0] + "\"" {
+            if parsed["product_id"].is_null()
+                || parsed["product_id"].to_string() != "\"".to_owned() + &instrument[0] + "\""
+            {
                 println!("Unexpected product_id in {}", msg);
                 continue;
             }
