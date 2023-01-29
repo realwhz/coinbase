@@ -95,7 +95,13 @@ async fn Subscribe(url: &str, instrument: &Vec<String>, book: Book) {
 
     // Loop forever, handling parsing each message
     loop {
-        let msg = socket.read_message().expect("Error reading message");
+        let msg: Message = match socket.read_message() {
+            Ok(msg) => msg,
+            Err(_) => {
+                println!("Error reading message.  Need to check with Coinbase.");
+                break;
+            }
+        };
         let msg = match msg {
             Message::Text(s) => s,
             _ => {
@@ -103,8 +109,19 @@ async fn Subscribe(url: &str, instrument: &Vec<String>, book: Book) {
                 continue;
             }
         };
-        let parsed: serde_json::Value = serde_json::from_str(&msg).expect("Can't parse to JSON");
+        let parsed: serde_json::Value = match serde_json::from_str(&msg) {
+            Ok(parsed) => parsed,
+            Err(_) => {
+                println!("Failed to parse JSON msg {}", msg);
+                continue;
+            },
+        };
+
         if parsed["type"].to_string() == "\"snapshot\"" {
+            if parsed["product_id"].is_null() || parsed["product_id"].to_string() != "\"".to_owned() + &instrument[0] + "\"" {
+                println!("Unexpected product_id in {}", msg);
+                continue;
+            }
             let data: serde_json::Result<book::SnapshotData> = serde_json::from_str(&msg);
             if data.is_err() {
                 println!("Failed to recognize {} due to {}", msg, data.err().unwrap());
@@ -113,6 +130,10 @@ async fn Subscribe(url: &str, instrument: &Vec<String>, book: Book) {
             let mut local_book = book.lock().unwrap();
             local_book.UpdateFullBook(data.unwrap());
         } else if parsed["type"].to_string() == "\"l2update\"" {
+            if parsed["product_id"].is_null() || parsed["product_id"].to_string() != "\"".to_owned() + &instrument[0] + "\"" {
+                println!("Unexpected product_id in {}", msg);
+                continue;
+            }
             let data: serde_json::Result<book::L2UpdateData> = serde_json::from_str(&msg);
             if data.is_err() {
                 println!("Failed to recognize {} due to {}", msg, data.err().unwrap());
