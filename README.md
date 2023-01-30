@@ -2,7 +2,7 @@
 Supports level2 data
 
 ## Usage
-This is a command line utitlity.  The instrument is specified as an arugment, e.g., BTC-USD.  Once started, it will automatically connect to the Coinbase feed websocket (by default sandbox).  Once the connection is estalibshed, an interactive interface will be launched.  Currently the following commands are supported:
+This is a command line utitlity.  The instrument is specified as an arugment, e.g., BTC-USD.  Once started, it will automatically connect to the Coinbase feed websocket (sandbox or production).  Once the connection is estalibshed, an interactive interface will be launched.  Currently the following commands are supported:
 - bestbid
 - bestask
 - midprice
