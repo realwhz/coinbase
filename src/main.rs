@@ -4,11 +4,12 @@
 use coinbase::WS_PRODUCTION_URL;
 #[allow(unused_imports)]
 use coinbase::WS_SANDBOX_URL;
+use futures::{SinkExt, StreamExt};
 use serde_json;
 use std::env;
 use std::io;
 use std::sync::{Arc, Mutex};
-use tungstenite::{connect, Message};
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
 
 mod book;
@@ -23,7 +24,7 @@ async fn main() {
         println!("Connecting to the Coinbase feed wss server");
         let local_book = local_book.clone();
         let instrument = vec![env::args().nth(1).expect("./coinbase instrument")];
-        tokio::spawn(async move { Subscribe(WS_SANDBOX_URL, &instrument, local_book).await });
+        tokio::spawn(async move { Subscribe(WS_PRODUCTION_URL, &instrument, local_book).await });
     }
 
     loop {
@@ -82,20 +83,23 @@ async fn main() {
 
 async fn Subscribe(url: &str, instrument: &Vec<String>, book: Book) {
     // Connect to the Coinbase WSS server
-    let (mut socket, _) = connect(Url::parse(url).unwrap()).expect("Cannot connect");
+    let (ws_stream, _) = connect_async(Url::parse(url).unwrap())
+        .await
+        .expect("Cannot connect");
     // Subscribe to the server
     let subscription = serde_json::json!({
         "type": "subscribe",
         "product_ids": instrument,
         "channels": ["level2"]
     });
-    socket
-        .write_message(Message::Text(subscription.to_string()))
+    let (mut tx, mut rx) = ws_stream.split();
+    tx.send(Message::Text(subscription.to_string()))
+        .await
         .unwrap();
 
     // Loop forever, handling parsing each message
     loop {
-        let msg: Message = match socket.read_message() {
+        let msg: Message = match rx.next().await.unwrap() {
             Ok(msg) => msg,
             Err(_) => {
                 println!("Error reading message.  Need to check with Coinbase.");
