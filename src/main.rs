@@ -78,7 +78,6 @@ async fn main() {
     }
 
     println!("Bye!");
-    std::process::exit(0);
 }
 
 async fn Subscribe(url: &str, instrument: &Vec<String>, book: Book) {

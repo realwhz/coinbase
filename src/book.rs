@@ -110,7 +110,7 @@ impl Book {
         {
             None
         } else {
-            Some((self.BestAskPrice().unwrap().0 - self.BestBidPrice().unwrap().0) / 2.0)
+            Some((self.BestAskPrice().unwrap().0 + self.BestBidPrice().unwrap().0) / 2.0)
         }
     }
 
